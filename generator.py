@@ -70,7 +70,7 @@ class Workbench:
         return items, nodes, edges, coords2D
 
 
-def generate(ntypes: int, npins: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.array]:
+def generate(ntypes: int, npins: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     workbench = Workbench(ntypes)
     for _ in range(npins - 1):
         coords = workbench.next()
