@@ -15,6 +15,7 @@ class ItemEncoder(torch.nn.Module):
         ) for _ in range(Config.items_nlayers)]
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        inputs = inputs.to(Config.device)
         outputs = self.linear(inputs)
         for attention in self.attentions:
             outputs, _ = attention(outputs, outputs)
@@ -32,6 +33,8 @@ class NodeEncoder(torch.nn.Module):
         ) for _ in range(Config.nodes_nlayers)]
 
     def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        inputs = inputs.to(Config.device)
+        mask = mask.to(Config.device)
         outputs = self.linear(inputs)
         for attention in self.attentions:
             outputs, _ = attention(outputs, outputs, mask)
@@ -53,4 +56,24 @@ class ItemSelectionPolicy(torch.nn.Module):
         outputs = self.linear(outputs)
         outputs = outputs.reshape(outputs.shape[:-1])
         outputs = self.softmax(outputs)
+        return outputs
+
+
+class ItemPlacementPolicy(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.glimpse = AttentionEncoderLayer(
+                Config.items_emb_dim,
+                Config.glimpse_nheads,
+                Config.glimpse_dense_hidden_dim
+        )
+        self.compatibility = Compatibility(
+            Config.nodes_emb_dim,
+            Config.items_emb_dim,
+            Config.compatibility_emb
+        )
+
+    def forward(self, vitem: torch.Tensor, vnodes: torch.Tensor, possible_placement: torch.Tensor) -> torch.Tensor:
+        glimpse, _ = self.glimpse(vitem, vnodes)
+        outputs = self.compatibility(vnodes, glimpse, possible_placement)
         return outputs

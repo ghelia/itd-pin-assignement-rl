@@ -15,6 +15,11 @@ class Config:
     items_query_dense_hidden_dim = 512
     items_query_nheads = 8
 
+    glimpse_dense_hidden_dim = 512
+    glimpse_nheads = 8
+
+    compatibility_emb = 128
+
     nodes_emb_dim = 128
     nodes_dense_hidden_dim = 512
     nodes_nheads = 8

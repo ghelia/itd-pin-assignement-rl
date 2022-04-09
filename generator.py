@@ -96,6 +96,32 @@ def generate(ntypes: int, npins: int, overlap_ratio: float) -> Tuple[np.ndarray,
         workbench.random(*coords)
     return workbench.numpy(overlap_ratio)
 
+def check_placement(selection: int,
+                    place: int,
+                    items: np.ndarray,
+                    nodes: np.ndarray,
+                    edges: np.ndarray,
+                    check_neighbors_type: bool = True
+                   ) -> bool:
+    item = items[selection]
+    node = nodes[placement]
+    item_type = item[:Config.ntypes].argmax()
+    node_types = node[:Config.ntypes]
+    if node_types[item_type] == 0:
+        return False
+    if check_neighbors_type is False:
+        return True
+    edge = edges[place]
+    for idx in range(Config.nitems):
+        if edge[idx] != 0:
+            neighbor = nodes[idx]
+            neighbor_placed_item = neighbor[Config.ntypes:]
+            if neighbor_placed_item.sum() > 0.:
+                neighbor_type = neighbor_placed_item.argmax()
+                item_allowed_neighbors = item[Config.ntypes:]
+                if item_allowed_neighbors[neighbor_type] == 0.:
+                    return False
+    return True
 
 def batch(batch_size: int = Config.batch_size,
           ntypes: int = Config.ntypes,
