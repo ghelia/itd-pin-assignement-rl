@@ -1,22 +1,17 @@
+from generator import *
+from network import ItemEncoder, NodeEncoder, ItemSelectionPolicy
 import torch
-from attention_layer import *
+i_encoder = ItemEncoder()
+n_encoder = NodeEncoder()
+selection_policy = ItemSelectionPolicy()
+items, nodes, edges = batch()
 
-batch_size = 7
-nqueries = 9
-nkvs = 11
-emb_dim = 25
-nhead = 5
+vitems = i_encoder(torch.tensor(items, dtype=torch.float32))
+print(items.shape)
+print(vitems.shape)
 
-encoder = AttentionEncoderLayer(emb_dim, 5)
+vnodes = n_encoder(torch.tensor(nodes, dtype=torch.float32), torch.tensor(edges, dtype=torch.bool))
+print(nodes.shape)
+print(vnodes.shape)
 
-qi = torch.rand([batch_size, nqueries, emb_dim]).to(Config.device)
-kvi = torch.rand([batch_size, nkvs, emb_dim]).to(Config.device)
-mask = torch.zeros([batch_size, nqueries, nkvs]).bool().to(Config.device)
-mask[1,4,2] = True
-mask[0,1,1] = True
-mask[2,6,4] = True
-outputs, attention = encoder(qi, kvi, mask=mask)
-
-print(outputs.shape)
-print(attention.shape)
-print(attention[1])
+probs = selection_policy(vitems, vnodes)

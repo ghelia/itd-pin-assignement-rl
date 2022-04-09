@@ -2,12 +2,15 @@ from typing import List, Tuple, MutableMapping, Optional
 
 import numpy as np
 
+from config import Config
+
 class Workbench:
 
     def __init__(self, ntype: int) -> None:
         self.table : MutableMapping[Tuple[int, int], int] = {}
         self.expandable_queue: List[Tuple[int, int]] = []
-        self.neighbors = [(0,1), (1,0), (0,-1), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)]
+        # self.neighbors = [(0,1), (1,0), (0,-1), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)]
+        self.neighbors = [(0,1), (1,0), (0,-1), (-1,0)]
         self.ntype = ntype
         self.random(0,0)
 
@@ -51,31 +54,59 @@ class Workbench:
     def is_neighbor(self, coords1: Tuple[int, int], coords2: Tuple[int, int]) -> bool:
         return abs(coords1[0] - coords2[0]) <= 1 and abs(coords1[1] - coords2[1]) <= 1
 
-    def numpy(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        items = np.zeros([len(self.table), self.ntype])
+    def numpy(self, overlap_ratio: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        items_type = np.zeros([len(self.table), self.ntype])
+        items_neighbors = np.zeros([len(self.table), self.ntype])
         for idx, pin in enumerate(self.table.values()):
-            items[idx, pin] = 1.
+            items_type[idx, pin] = 1.
+        for idx, (x,y) in enumerate(self.table.keys()):
+            for nx, ny in self.neighbors:
+                coords = (x + nx, y + ny)
+                ntype = self.get(*coords)
+                if ntype is not None:
+                    items_neighbors[idx, ntype] = 1.
+        items = np.concatenate([items_type, items_neighbors], axis=1)
+
         nodes = np.zeros([len(self.table), self.ntype])
         for idx, pin in enumerate(self.table.values()):
             nodes[idx, pin] = 1.
-        edges = np.zeros([len(self.table), len(self.table), 1])
+        overlaps = int(overlap_ratio * nodes.shape[0])
+        for _ in range(overlaps):
+            idx = np.random.randint(nodes.shape[0])
+            rtype  = np.random.randint(nodes.shape[1])
+            nodes[idx][rtype] = 1.
+        nodes = np.concatenate([nodes, np.zeros(nodes.shape)], axis=1)
+
+        edges = np.zeros([len(self.table), len(self.table)])
         for i, coords1 in enumerate(self.table.keys()):
             for j, coords2 in enumerate(self.table.keys()):
                 if i == j:
                     continue
                 if self.is_neighbor(coords1, coords2):
-                    edges[i, j, 0] = 1.
-                    edges[j, i, 0] = 1.
-        coords2D =  np.array([[x,y] for x,y in self.table.keys()])
+                    edges[i, j] = 1.
+                    edges[j, i] = 1.
+        coords2D = np.array([[x,y] for x,y in self.table.keys()])
         return items, nodes, edges, coords2D
 
 
-def generate(ntypes: int, npins: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def generate(ntypes: int, npins: int, overlap_ratio: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     workbench = Workbench(ntypes)
     for _ in range(npins - 1):
         coords = workbench.next()
         workbench.random(*coords)
-    return workbench.numpy()
+    return workbench.numpy(overlap_ratio)
+
+
+def batch(batch_size: int = Config.batch_size,
+          ntypes: int = Config.ntypes,
+          npins: int = Config.nitems,
+          overlap_ratio: float = Config.overlap_ratio
+         ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    instances = [generate(ntypes, npins, overlap_ratio) for _ in range(batch_size)]
+    items_batch = np.stack([instance[0] for instance in instances])
+    nodes_batch = np.stack([instance[1] for instance in instances])
+    edges_batch = np.stack([instance[2] for instance in instances])
+    return items_batch, nodes_batch, edges_batch
 
 
 def print_graph(nodes: np.ndarray, coords2D: np.ndarray) -> None:
@@ -100,5 +131,5 @@ def print_graph(nodes: np.ndarray, coords2D: np.ndarray) -> None:
 
 
 if __name__ == "__main__":
-    items, nodes, edges, coords2D = generate(6, 1000)
+    items, nodes, edges, coords2D = generate(6, 100, 0.25)
     print_graph(nodes, coords2D)
