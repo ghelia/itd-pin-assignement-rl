@@ -7,7 +7,7 @@ from config import Config
 class ItemEncoder(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.linear = Linear(Config.ntypes*2, Config.items_emb_dim)
+        self.linear = Linear(Config.item_dims, Config.items_emb_dim)
         self.attentions = [AttentionEncoderLayer(
                 Config.items_emb_dim,
                 Config.items_nheads,
@@ -25,7 +25,7 @@ class ItemEncoder(torch.nn.Module):
 class NodeEncoder(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.linear = Linear(Config.ntypes*2, Config.nodes_emb_dim)
+        self.linear = Linear(Config.node_dims, Config.nodes_emb_dim)
         self.attentions = [AttentionEncoderLayer(
                 Config.nodes_emb_dim,
                 Config.nodes_nheads,
@@ -76,4 +76,4 @@ class ItemPlacementPolicy(torch.nn.Module):
     def forward(self, vitem: torch.Tensor, vnodes: torch.Tensor, possible_placement: torch.Tensor) -> torch.Tensor:
         glimpse, _ = self.glimpse(vitem, vnodes)
         outputs = self.compatibility(vnodes, glimpse, possible_placement)
-        return outputs
+        return outputs.reshape([-1, Config.nitems])

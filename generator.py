@@ -75,7 +75,8 @@ class Workbench:
             idx = np.random.randint(nodes.shape[0])
             rtype  = np.random.randint(nodes.shape[1])
             nodes[idx][rtype] = 1.
-        nodes = np.concatenate([nodes, np.zeros(nodes.shape)], axis=1)
+        node_placements = np.zeros([len(self.table), self.ntype*2 + 1])
+        nodes = np.concatenate([nodes, node_placements], axis=1)
 
         edges = np.zeros([len(self.table), len(self.table)])
         for i, coords1 in enumerate(self.table.keys()):
@@ -86,6 +87,7 @@ class Workbench:
                     edges[i, j] = 1.
                     edges[j, i] = 1.
         coords2D = np.array([[x,y] for x,y in self.table.keys()])
+        np.random.shuffle(items)
         return items, nodes, edges, coords2D
 
 
@@ -96,32 +98,79 @@ def generate(ntypes: int, npins: int, overlap_ratio: float) -> Tuple[np.ndarray,
         workbench.random(*coords)
     return workbench.numpy(overlap_ratio)
 
-def check_placement(selection: int,
-                    place: int,
-                    items: np.ndarray,
+
+def get_node_type(node: np.ndarray) -> int:
+    node_type_ohv = node[Config.placement_offset:Config.placement_offset + Config.ntypes]
+    tsum = node_type_ohv.sum()
+    if tsum == 0:
+        return -1
+    assert tsum == 1
+    return int(node_type_ohv.argmax())
+
+def have_item(node: np.ndarray) -> bool:
+    return node[Config.placed_flag_index] == 1.
+
+def check_neighbor_compatible(node: np.ndarray, neighbor: np.ndarray) -> bool:
+    if not have_item(node):
+        return True
+    if not have_item(neighbor):
+        return True
+    neighbor_type = get_node_type(neighbor)
+    assert neighbor_type >= 0
+    return node[Config.possible_neighbor_offset + neighbor_type] == 1.
+
+
+def check_placement(place: int,
                     nodes: np.ndarray,
                     edges: np.ndarray,
                     check_neighbors_type: bool = True
                    ) -> bool:
-    item = items[selection]
-    node = nodes[placement]
-    item_type = item[:Config.ntypes].argmax()
-    node_types = node[:Config.ntypes]
-    if node_types[item_type] == 0:
+    node = nodes[place]
+    node_possible_types = node[:Config.ntypes]
+    placed_item_type = get_node_type(node)
+    assert placed_item_type >= 0
+    if node_possible_types[placed_item_type] == 0:
         return False
-    if check_neighbors_type is False:
+    if not check_neighbors_type:
         return True
     edge = edges[place]
     for idx in range(Config.nitems):
         if edge[idx] != 0:
             neighbor = nodes[idx]
-            neighbor_placed_item = neighbor[Config.ntypes:]
-            if neighbor_placed_item.sum() > 0.:
-                neighbor_type = neighbor_placed_item.argmax()
-                item_allowed_neighbors = item[Config.ntypes:]
-                if item_allowed_neighbors[neighbor_type] == 0.:
-                    return False
+            if not check_neighbor_compatible(node, neighbor):
+                return False
+            if not check_neighbor_compatible(neighbor, node):
+                return False
     return True
+
+
+def put_items(selections: np.ndarray,
+              places: np.ndarray,
+              items: np.ndarray,
+              nodes: np.ndarray
+             ) -> None:
+    batch = len(selections)
+    nodes[np.arange(batch),places, Config.placed_flag_index] = 1.
+    nodes[np.arange(batch),places, Config.placement_offset:] = items[np.arange(batch),selections]
+
+
+def check_placements(places: np.ndarray,
+                     nodes: np.ndarray,
+                     edges: np.ndarray,
+                     check_neighbors_type: bool = True
+                   ) -> List[bool]:
+    results: List[bool] = []
+    assert len(places) == len(nodes) == len(edges)
+    for idx in range(len(places)):
+        results.append(check_placement(
+            places[idx],
+            nodes[idx],
+            edges[idx],
+            check_neighbors_type
+        ))
+    return results
+
+
 
 def batch(batch_size: int = Config.batch_size,
           ntypes: int = Config.ntypes,
