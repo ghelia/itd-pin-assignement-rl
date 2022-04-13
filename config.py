@@ -2,10 +2,16 @@ import torch
 
 class Config:
 
+    learning_rate = 0.0001
+    learning_rate_decay = 0.995
+    n_epoch = 10000
+    n_episode = 30
+    batch_size = 100
+    paired_test_alpha = 0.02
+
     ntypes = 3
     nitems = 10
     overlap_ratio = 0.25
-    batch_size = 5
 
     items_emb_dim = 128
     items_dense_hidden_dim = 512

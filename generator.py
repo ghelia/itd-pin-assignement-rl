@@ -1,5 +1,6 @@
 from typing import List, Tuple, MutableMapping, Optional
 
+import torch
 import numpy as np
 
 from config import Config
@@ -144,44 +145,47 @@ def check_placement(place: int,
     return True
 
 
-def put_items(selections: np.ndarray,
-              places: np.ndarray,
-              items: np.ndarray,
-              nodes: np.ndarray
+def put_items(selections: torch.Tensor,
+              places: torch.Tensor,
+              items: torch.Tensor,
+              nodes: torch.Tensor
              ) -> None:
     batch = len(selections)
     nodes[np.arange(batch),places, Config.placed_flag_index] = 1.
     nodes[np.arange(batch),places, Config.placement_offset:] = items[np.arange(batch),selections]
 
 
-def check_placements(places: np.ndarray,
-                     nodes: np.ndarray,
-                     edges: np.ndarray,
+def check_placements(places: torch.Tensor,
+                     nodes: torch.Tensor,
+                     edges: torch.Tensor,
                      check_neighbors_type: bool = True
                    ) -> List[bool]:
     results: List[bool] = []
     assert len(places) == len(nodes) == len(edges)
     for idx in range(len(places)):
         results.append(check_placement(
-            places[idx],
-            nodes[idx],
-            edges[idx],
+            int(places[idx].int().item()),
+            nodes[idx].cpu().numpy(),
+            edges[idx].cpu().numpy(),
             check_neighbors_type
         ))
     return results
-
 
 
 def batch(batch_size: int = Config.batch_size,
           ntypes: int = Config.ntypes,
           npins: int = Config.nitems,
           overlap_ratio: float = Config.overlap_ratio
-         ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+         ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     instances = [generate(ntypes, npins, overlap_ratio) for _ in range(batch_size)]
-    items_batch = np.stack([instance[0] for instance in instances])
-    nodes_batch = np.stack([instance[1] for instance in instances])
-    edges_batch = np.stack([instance[2] for instance in instances])
-    return items_batch, nodes_batch, edges_batch
+    items = np.stack([instance[0] for instance in instances])
+    nodes = np.stack([instance[1] for instance in instances])
+    edges = np.stack([instance[2] for instance in instances])
+    return (
+        torch.tensor(items, device=Config.device, dtype=torch.float32),
+        torch.tensor(nodes, device=Config.device, dtype=torch.float32),
+        torch.tensor(edges, device=Config.device, dtype=torch.bool)
+    )
 
 
 def print_graph(nodes: np.ndarray, coords2D: np.ndarray) -> None:
