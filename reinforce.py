@@ -17,12 +17,16 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
 
     best_score = -np.inf
     for E in range(Config.n_epoch):
+        agent.train()
+        print(f"")
         print(f"Epoch {E}")
+        print(f"size {Config.nitems}")
+        all_losses = []
         all_rewards = []
         all_baseline_rewards = []
         for e in range(Config.n_episode):
             optimizer.zero_grad()
-            items, nodes, edges = batch()
+            items, nodes, edges = batch(npins=Config.nitems)
             log_probs, actions, rewards = agent(items, nodes, edges)
 
             with torch.no_grad():
@@ -30,7 +34,9 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
             all_rewards.append(rewards.sum(1).mean().item())
             all_baseline_rewards.append(baseline_rewards.sum(1).mean().item())
 
-            loss = ((baseline_rewards.sum(1) - rewards.sum(1)) * log_probs.sum(1)).mean()
+            loss = -((rewards.sum(1) - baseline_rewards.sum(1)) * log_probs.sum(1)).mean()
+            # loss = ((rewards.sum(1)) * log_probs.sum(1)).mean()
+            all_losses.append(loss.item())
             loss.backward()
             optimizer.step()
         if np.mean(all_rewards) > best_score:
@@ -40,4 +46,20 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
             print("Update baseline policy")
             baseline.load_state_dict(agent.state_dict())
         print(f"Score {np.mean(all_rewards)}")
+        print(f"Loss {np.mean(all_losses)}")
         scheduler.step()
+
+        agent.eval()
+        with torch.no_grad():
+            items, nodes, edges = batch(npins=Config.nitems)
+            _, _, rewards = agent(items, nodes, edges)
+        success = rewards.bool().sum(1).bool().logical_not().sum().item()
+        total = len(rewards)
+        print(f"Evaluation {success} / {total}")
+        if success >= total:
+            print()
+            print(f"Increase size")
+            print()
+            baseline.load_state_dict(agent.state_dict())
+            Config.nitems += 1
+

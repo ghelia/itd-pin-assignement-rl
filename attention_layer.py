@@ -87,6 +87,7 @@ class AttentionEncoderLayer(torch.nn.Module):
         nqueries = queries.shape[1]
         nkvs = keys_values.shape[1]
         if mask is not None:
+            mask = mask.logical_not()
             mask = mask.repeat([1,self.nhead,1])
             mask = mask.reshape([batch_size*self.nhead, nqueries, nkvs])
             mask = mask.to(Config.device)

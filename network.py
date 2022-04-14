@@ -18,11 +18,11 @@ class ItemEncoder(torch.nn.Module):
                 Config.items_dense_hidden_dim
         ) for _ in range(Config.items_nlayers)]
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         inputs = inputs.to(Config.device)
         outputs = self.linear(inputs)
         for attention in self.attentions:
-            outputs, _ = attention(outputs, outputs)
+            outputs, _ = attention(outputs, outputs, mask)
         return outputs
 
 
@@ -55,10 +55,11 @@ class ItemSelectionPolicy(torch.nn.Module):
         self.linear = Linear(Config.nodes_emb_dim, 1)
         self.softmax = torch.nn.Softmax(1)
 
-    def forward(self, vitems: torch.Tensor, vnodes: torch.Tensor) -> torch.Tensor:
+    def forward(self, vitems: torch.Tensor, vnodes: torch.Tensor, already_selected: torch.Tensor) -> torch.Tensor:
         outputs, _ = self.attention(vitems, vnodes)
         outputs = self.linear(outputs)
         outputs = outputs.reshape(outputs.shape[:-1])
+        outputs[already_selected] = -np.inf
         outputs = self.softmax(outputs)
         return outputs
 
@@ -114,15 +115,25 @@ class Agent(torch.nn.Module):
         bsize = len(nodes)
         assert len(items) == bsize
         assert len(edges) == bsize
-        vitems = self.i_encoder(items)
         batch_range = torch.arange(bsize, dtype=torch.long, device=Config.device)
+        already_selected = torch.zeros([bsize, Config.nitems], device=Config.device).bool()
+        available_mask = torch.ones([bsize, Config.nitems, Config.nitems], device=Config.device).bool()
         for step in range(Config.nitems):
+            vitems = self.i_encoder(items, available_mask)
             vnodes = self.n_encoder(nodes, edges.bool())
-            selection_probs = self.selection_policy(vitems, vnodes)
+            selection_probs = self.selection_policy(vitems, vnodes, already_selected)
             selection_distribution = torch.distributions.categorical.Categorical(selection_probs)
-            selections = selection_distribution.sample()
-            # selections = selection_probs.argmax(1).cpu().numpy()
+            if self.training:
+                selections = selection_distribution.sample()
+            else:
+                selections = selection_probs.argmax(1)
             log_probs = selection_distribution.log_prob(selections)
+            already_selected = already_selected.clone()
+            already_selected[batch_range,selections] = True
+            available_mask[batch_range, selections] = False
+            available_mask[batch_range, :, selections] = False
+            available_mask[batch_range, selections, selections] = True
+
             all_log_probs.append(log_probs)
             all_actions.append(selections)
 
@@ -133,15 +144,17 @@ class Agent(torch.nn.Module):
                 nodes[:, :, Config.placed_flag_index].reshape([bsize, 1, Config.nitems]).bool().logical_not()
             )
             placement_distribution = torch.distributions.categorical.Categorical(placement_probs)
-            places = placement_distribution.sample()
-            # places = placement_probs.argmax(1).cpu().numpy()
+            if self.training:
+                places = placement_distribution.sample()
+            else:
+                places = placement_probs.argmax(1)
             log_probs = placement_distribution.log_prob(places)
             all_log_probs.append(log_probs)
             all_actions.append(places)
 
             nodes = nodes.clone()
             put_items(selections, places, items, nodes)
-            success = check_placements(places, nodes, edges)
+            success = check_placements(places, nodes, edges, Config.check_neighbors)
             rewards = torch.tensor(success, device=Config.device).int() - 1.
             all_rewards.append(rewards)
         return (torch.stack(all_log_probs, dim=1), torch.stack(all_actions, dim=1), torch.stack(all_rewards, dim=1))

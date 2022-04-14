@@ -53,7 +53,8 @@ class Workbench:
         return coords
 
     def is_neighbor(self, coords1: Tuple[int, int], coords2: Tuple[int, int]) -> bool:
-        return abs(coords1[0] - coords2[0]) <= 1 and abs(coords1[1] - coords2[1]) <= 1
+        diff = (coords1[0] - coords2[0], coords1[1] - coords2[1])
+        return diff in self.neighbors
 
     def numpy(self, overlap_ratio: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         items_type = np.zeros([len(self.table), self.ntype])
