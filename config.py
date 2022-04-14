@@ -2,7 +2,7 @@ import torch
 
 class Config:
 
-    learning_rate = 0.0001
+    learning_rate = 0.00001
     learning_rate_decay = 0.999
     n_epoch = 10000
     n_episode = 50
