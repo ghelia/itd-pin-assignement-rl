@@ -12,12 +12,13 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
     optimizer = torch.optim.Adam(agent.parameters(), lr=Config.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=Config.learning_rate_decay)
     agent.train()
-    baseline.eval()
+    baseline.train()
     baseline.load_state_dict(agent.state_dict())
 
     best_score = -np.inf
     for E in range(Config.n_epoch):
         agent.train()
+        baseline.train()
         print(f"")
         print(f"Epoch {E}")
         print(f"size {Config.nitems}")
@@ -27,10 +28,12 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
         for e in range(Config.n_episode):
             optimizer.zero_grad()
             items, nodes, edges = batch(npins=Config.nitems)
-            log_probs, actions, rewards = agent(items, nodes, edges)
 
+            # TODO delete
+            baseline.load_state_dict(agent.state_dict())
             with torch.no_grad():
-                _, _, baseline_rewards = baseline(items, nodes, edges)
+                _, _, baseline_rewards = agent(items, nodes, edges)
+            log_probs, actions, rewards = agent(items, nodes, edges)
             all_rewards.append(rewards.sum(1).mean().item())
             all_baseline_rewards.append(baseline_rewards.sum(1).mean().item())
 
@@ -39,11 +42,14 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
             all_losses.append(loss.item())
             loss.backward()
             optimizer.step()
+        print(f"Agent {all_rewards}")
+        print(f"Baseline {all_baseline_rewards}")
         if np.mean(all_rewards) > best_score:
             best_score = np.mean(all_rewards)
             # torch.save(policy.state_dict(), os.path.join(save_path, f'{E}-{best_score}.chkpt'))
         if (np.mean(all_rewards) - np.mean(all_baseline_rewards)) / np.abs(np.mean(all_baseline_rewards)) > Config.paired_test_alpha:
             print("Update baseline policy")
+            print(f"Baseline Score {np.mean(all_baseline_rewards)}")
             baseline.load_state_dict(agent.state_dict())
         print(f"Score {np.mean(all_rewards)}")
         print(f"Loss {np.mean(all_losses)}")
@@ -56,7 +62,7 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
         success = rewards.bool().sum(1).bool().logical_not().sum().item()
         total = len(rewards)
         print(f"Evaluation {success} / {total}")
-        if success >= total:
+        if success/total > 0.98:
             print()
             print(f"Increase size")
             print()

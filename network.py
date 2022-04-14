@@ -121,6 +121,7 @@ class Agent(torch.nn.Module):
         for step in range(Config.nitems):
             vitems = self.i_encoder(items, available_mask)
             vnodes = self.n_encoder(nodes, edges.bool())
+            return vitems, vnodes
             selection_probs = self.selection_policy(vitems, vnodes, already_selected)
             selection_distribution = torch.distributions.categorical.Categorical(selection_probs)
             if self.training:

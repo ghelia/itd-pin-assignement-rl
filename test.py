@@ -4,8 +4,12 @@ from network import Agent
 import torch
 
 agent = Agent()
+baseline = Agent()
+agent.eval()
+baseline.eval()
+baseline.load_state_dict(agent.state_dict())
 items, nodes, edges = batch()
-log_probs, actions, rewards = agent(items, nodes, edges)
+
 
 # selection_probs, selections, placement_probs, places = agent(items, nodes, edges, None, None)
 # put_items(selections, places, items, nodes)
