@@ -18,7 +18,7 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
     best_score = -np.inf
     for E in range(Config.n_epoch):
         agent.train()
-        baseline.train()
+        baseline.eval()
         print(f"")
         print(f"Epoch {E}")
         print(f"size {Config.nitems}")
@@ -29,10 +29,8 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
             optimizer.zero_grad()
             items, nodes, edges = batch(npins=Config.nitems)
 
-            # TODO delete
-            baseline.load_state_dict(agent.state_dict())
             with torch.no_grad():
-                _, _, baseline_rewards = agent(items, nodes, edges)
+                _, _, baseline_rewards = baseline(items, nodes, edges)
             log_probs, actions, rewards = agent(items, nodes, edges)
             all_rewards.append(rewards.sum(1).mean().item())
             all_baseline_rewards.append(baseline_rewards.sum(1).mean().item())
@@ -42,15 +40,13 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
             all_losses.append(loss.item())
             loss.backward()
             optimizer.step()
-        print(f"Agent {all_rewards}")
-        print(f"Baseline {all_baseline_rewards}")
         if np.mean(all_rewards) > best_score:
             best_score = np.mean(all_rewards)
             # torch.save(policy.state_dict(), os.path.join(save_path, f'{E}-{best_score}.chkpt'))
         if (np.mean(all_rewards) - np.mean(all_baseline_rewards)) / np.abs(np.mean(all_baseline_rewards)) > Config.paired_test_alpha:
             print("Update baseline policy")
-            print(f"Baseline Score {np.mean(all_baseline_rewards)}")
             baseline.load_state_dict(agent.state_dict())
+        print(f"Baseline Score {np.mean(all_baseline_rewards)}")
         print(f"Score {np.mean(all_rewards)}")
         print(f"Loss {np.mean(all_losses)}")
         scheduler.step()
@@ -66,6 +62,5 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
             print()
             print(f"Increase size")
             print()
-            baseline.load_state_dict(agent.state_dict())
             Config.nitems += 1
 

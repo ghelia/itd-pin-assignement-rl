@@ -5,9 +5,9 @@ import torch
 
 agent = Agent()
 baseline = Agent()
+baseline.load_state_dict(agent.state_dict())
 agent.eval()
 baseline.eval()
-baseline.load_state_dict(agent.state_dict())
 items, nodes, edges = batch()
 
 

@@ -12,11 +12,11 @@ class ItemEncoder(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.linear = Linear(Config.item_dims, Config.items_emb_dim)
-        self.attentions = [AttentionEncoderLayer(
+        self.attentions = torch.nn.Sequential(*[AttentionEncoderLayer(
                 Config.items_emb_dim,
                 Config.items_nheads,
                 Config.items_dense_hidden_dim
-        ) for _ in range(Config.items_nlayers)]
+        ) for _ in range(Config.items_nlayers)])
 
     def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         inputs = inputs.to(Config.device)
@@ -30,11 +30,11 @@ class NodeEncoder(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.linear = Linear(Config.node_dims, Config.nodes_emb_dim)
-        self.attentions = [AttentionEncoderLayer(
+        self.attentions = torch.nn.Sequential(*[AttentionEncoderLayer(
                 Config.nodes_emb_dim,
                 Config.nodes_nheads,
                 Config.nodes_dense_hidden_dim
-        ) for _ in range(Config.nodes_nlayers)]
+        ) for _ in range(Config.nodes_nlayers)])
 
     def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         inputs = inputs.to(Config.device)
@@ -121,7 +121,6 @@ class Agent(torch.nn.Module):
         for step in range(Config.nitems):
             vitems = self.i_encoder(items, available_mask)
             vnodes = self.n_encoder(nodes, edges.bool())
-            return vitems, vnodes
             selection_probs = self.selection_policy(vitems, vnodes, already_selected)
             selection_distribution = torch.distributions.categorical.Categorical(selection_probs)
             if self.training:

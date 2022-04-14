@@ -37,6 +37,7 @@ class Config:
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
+    device = torch.device("cpu")
 
     placed_flag_index = ntypes
     placement_offset = placed_flag_index + 1
