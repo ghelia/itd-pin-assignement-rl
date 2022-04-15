@@ -8,14 +8,13 @@ from network import Agent
 from generator import batch
 
 
-def reinforce(agent: Agent, baseline: Agent) -> None:
+def reinforce(agent: Agent, baseline: Agent, save_path: str = "./saves/tmp") -> None:
     optimizer = torch.optim.Adam(agent.parameters(), lr=Config.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=Config.learning_rate_decay)
     agent.train()
     baseline.train()
     baseline.load_state_dict(agent.state_dict())
 
-    best_score = -np.inf
     for E in range(Config.n_epoch):
         agent.train()
         baseline.eval()
@@ -40,12 +39,12 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
             all_losses.append(loss.item())
             loss.backward()
             optimizer.step()
-        if np.mean(all_rewards) > best_score:
-            best_score = np.mean(all_rewards)
-            # torch.save(policy.state_dict(), os.path.join(save_path, f'{E}-{best_score}.chkpt'))
         if (np.mean(all_rewards) - np.mean(all_baseline_rewards)) / np.abs(np.mean(all_baseline_rewards)) > Config.paired_test_alpha:
+            torch.save(agent.state_dict(), os.path.join(save_path, f'agent-{E}-before-baseline-update.chkpt'))
+            torch.save(baseline.state_dict(), os.path.join(save_path, f'baseline-{E}-before-baseline-update.chkpt'))
             print("Update baseline policy")
             baseline.load_state_dict(agent.state_dict())
+            print("Save models")
         print(f"Baseline Score {np.mean(all_baseline_rewards)}")
         print(f"Score {np.mean(all_rewards)}")
         print(f"Loss {np.mean(all_losses)}")
@@ -59,6 +58,7 @@ def reinforce(agent: Agent, baseline: Agent) -> None:
         total = len(rewards)
         print(f"Evaluation {success} / {total}")
         if success/total > 0.98:
+            torch.save(agent.state_dict(), os.path.join(save_path, f'agent-{E}-increase-size.chkpt'))
             print()
             print(f"Increase size")
             print()
