@@ -5,13 +5,16 @@ class Config:
     learning_rate = 0.00001
     learning_rate_decay = 0.999
     n_epoch = 10000
-    n_episode = 50
-    batch_size = 200
+    n_episode = 100
+    batch_size = 100
     paired_test_alpha = 0.02
 
-    ntypes = 3
-    nitems = 3
-    overlap_ratio = 0.25
+    selection_policy_weight = 0.5
+    placement_policy_weight = 1.5
+
+    ntypes = 5
+    nitems = 4
+    overlap_ratio = 0.33
     check_neighbors = True
 
     items_emb_dim = 128

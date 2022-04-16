@@ -96,7 +96,7 @@ class Agent(torch.nn.Module):
                 items: torch.Tensor,
                 nodes: torch.Tensor,
                 edges: torch.Tensor
-               ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+               ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Arguments
         ---------
@@ -105,11 +105,17 @@ class Agent(torch.nn.Module):
             edges
         Returns
         -------
-            log_probs
+            items_probs
+            nodes_probs
+            items_log_probs
+            nodes_log_probs
             actions
             rewards
         """
-        all_log_probs: List[torch.Tensor] = []
+        items_probs: List[torch.Tensor] = []
+        nodes_probs: List[torch.Tensor] = []
+        items_log_probs: List[torch.Tensor] = []
+        nodes_log_probs: List[torch.Tensor] = []
         all_actions: List[torch.Tensor] = []
         all_rewards: List[torch.Tensor] = []
         bsize = len(nodes)
@@ -122,6 +128,7 @@ class Agent(torch.nn.Module):
             vitems = self.i_encoder(items, available_mask)
             vnodes = self.n_encoder(nodes, edges.bool())
             selection_probs = self.selection_policy(vitems, vnodes, already_selected)
+            items_probs.append(selection_probs)
             selection_distribution = torch.distributions.categorical.Categorical(selection_probs)
             if self.training:
                 selections = selection_distribution.sample()
@@ -134,7 +141,7 @@ class Agent(torch.nn.Module):
             available_mask[batch_range, :, selections] = False
             available_mask[batch_range, selections, selections] = True
 
-            all_log_probs.append(log_probs)
+            items_log_probs.append(log_probs)
             all_actions.append(selections)
 
             vitem = vitems[batch_range, selections].reshape([bsize, 1, Config.items_emb_dim])
@@ -143,13 +150,14 @@ class Agent(torch.nn.Module):
                 vnodes,
                 nodes[:, :, Config.placed_flag_index].reshape([bsize, 1, Config.nitems]).bool().logical_not()
             )
+            nodes_probs.append(placement_probs)
             placement_distribution = torch.distributions.categorical.Categorical(placement_probs)
             if self.training:
                 places = placement_distribution.sample()
             else:
                 places = placement_probs.argmax(1)
             log_probs = placement_distribution.log_prob(places)
-            all_log_probs.append(log_probs)
+            nodes_log_probs.append(log_probs)
             all_actions.append(places)
 
             nodes = nodes.clone()
@@ -157,4 +165,13 @@ class Agent(torch.nn.Module):
             success = check_placements(places, nodes, edges, Config.check_neighbors)
             rewards = torch.tensor(success, device=Config.device).int() - 1.
             all_rewards.append(rewards)
-        return (torch.stack(all_log_probs, dim=1), torch.stack(all_actions, dim=1), torch.stack(all_rewards, dim=1))
+        final_rewards = torch.stack(all_rewards, dim=1)
+        final_rewards = (final_rewards.sum(1).bool().float() * -2) + 1
+        return (
+            torch.stack(items_probs, dim=1),
+            torch.stack(nodes_probs, dim=1),
+            torch.stack(items_log_probs, dim=1),
+            torch.stack(nodes_log_probs, dim=1),
+            torch.stack(all_actions, dim=1),
+            final_rewards
+        )

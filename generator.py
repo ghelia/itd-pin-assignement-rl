@@ -61,7 +61,7 @@ class Workbench:
         items_neighbors = np.zeros([len(self.table), self.ntype])
         for idx, pin in enumerate(self.table.values()):
             items_type[idx, pin] = 1.
-        for idx, (x,y) in enumerate(self.table.keys()):
+        for idx, (x, y) in enumerate(self.table.keys()):
             for nx, ny in self.neighbors:
                 coords = (x + nx, y + ny)
                 ntype = self.get(*coords)
@@ -72,11 +72,10 @@ class Workbench:
         nodes = np.zeros([len(self.table), self.ntype])
         for idx, pin in enumerate(self.table.values()):
             nodes[idx, pin] = 1.
-        overlaps = int(overlap_ratio * nodes.shape[0])
-        for _ in range(overlaps):
-            idx = np.random.randint(nodes.shape[0])
-            rtype  = np.random.randint(nodes.shape[1])
-            nodes[idx][rtype] = 1.
+        for idx in range(nodes.shape[0]):
+            if np.random.random() <= overlap_ratio:
+                rtype  = np.random.randint(nodes.shape[1])
+                nodes[idx][rtype] = 1.
         node_placements = np.zeros([len(self.table), self.ntype*2 + 1])
         nodes = np.concatenate([nodes, node_placements], axis=1)
 
