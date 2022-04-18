@@ -36,11 +36,10 @@ class Config:
     nodes_nlayers = 3
 
     dtype = torch.float32
-    # if torch.cuda.is_available():
-    #     device = torch.device("cuda")
-    # else:
-    #     device = torch.device("cpu")
-    device = torch.device("cuda")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
 
     placed_flag_index = ntypes
     placement_offset = placed_flag_index + 1

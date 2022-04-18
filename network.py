@@ -95,7 +95,8 @@ class Agent(torch.nn.Module):
     def forward(self,
                 items: torch.Tensor,
                 nodes: torch.Tensor,
-                edges: torch.Tensor
+                edges: torch.Tensor,
+                greedy: bool = False
                ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Arguments
@@ -130,7 +131,8 @@ class Agent(torch.nn.Module):
             selection_probs = self.selection_policy(vitems, vnodes, already_selected)
             items_probs.append(selection_probs)
             selection_distribution = torch.distributions.categorical.Categorical(selection_probs)
-            if self.training:
+            # if self.training:
+            if not greedy:
                 selections = selection_distribution.sample()
             else:
                 selections = selection_probs.argmax(1)
@@ -152,7 +154,8 @@ class Agent(torch.nn.Module):
             )
             nodes_probs.append(placement_probs)
             placement_distribution = torch.distributions.categorical.Categorical(placement_probs)
-            if self.training:
+            # if self.training:
+            if not greedy:
                 places = placement_distribution.sample()
             else:
                 places = placement_probs.argmax(1)

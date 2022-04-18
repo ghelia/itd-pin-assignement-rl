@@ -20,7 +20,7 @@ def reinforce(agent: Agent, baseline: Agent, recorder: Recorder, save_path: str)
 
     for E in range(Config.n_epoch):
         agent.train()
-        baseline.eval()
+        baseline.train()
         print(f"")
         print(f"Epoch {E}")
         print(f"size {Config.nitems}")
@@ -32,7 +32,7 @@ def reinforce(agent: Agent, baseline: Agent, recorder: Recorder, save_path: str)
             items, nodes, edges = batch(npins=Config.nitems)
 
             with torch.no_grad():
-                _, _, _, _, _, baseline_rewards = baseline(items, nodes, edges)
+                _, _, _, _, _, baseline_rewards = baseline(items, nodes, edges, greedy=True)
             (
                 items_probs,
                 nodes_probs,
@@ -71,10 +71,10 @@ def reinforce(agent: Agent, baseline: Agent, recorder: Recorder, save_path: str)
         recorder.end_epoch()
         scheduler.step()
 
-        agent.eval()
+        # agent.eval()
         with torch.no_grad():
             items, nodes, edges = batch(npins=Config.nitems)
-            _, _, _, _, _, rewards = agent(items, nodes, edges)
+            _, _, _, _, _, rewards = agent(items, nodes, edges, greedy=True)
         success = rewards.gt(0).sum().item()
         total = len(rewards)
         print(f"Evaluation {success} / {total}")
