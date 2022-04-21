@@ -2,11 +2,11 @@ import torch
 
 class Config:
 
-    learning_rate = 0.00001
+    learning_rate = 0.00003
     learning_rate_decay = 0.999
     n_epoch = 10000
     n_episode = 100
-    batch_size = 100
+    batch_size = 50
     paired_test_alpha = 0.02
 
     selection_policy_weight = 0.5
@@ -36,11 +36,10 @@ class Config:
     nodes_nlayers = 3
 
     dtype = torch.float32
-    # if torch.cuda.is_available():
-    #     device = torch.device("cuda")
-    # else:
-    #     device = torch.device("cpu")
-    device = torch.device("cuda")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
 
     placed_flag_index = ntypes
     placement_offset = placed_flag_index + 1
