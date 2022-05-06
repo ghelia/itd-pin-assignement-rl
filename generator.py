@@ -175,16 +175,25 @@ def check_placements(places: torch.Tensor,
 def batch(batch_size: int = Config.batch_size,
           ntypes: int = Config.ntypes,
           npins: int = Config.nitems,
-          overlap_ratio: float = Config.overlap_ratio
+          overlap_ratio: float = Config.overlap_ratio,
+          return_coords: bool = False
          ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     instances = [generate(ntypes, npins, overlap_ratio) for _ in range(batch_size)]
     items = np.stack([instance[0] for instance in instances])
     nodes = np.stack([instance[1] for instance in instances])
     edges = np.stack([instance[2] for instance in instances])
+    if not return_coords:
+        return (
+            torch.tensor(items, device=Config.device, dtype=torch.float32),
+            torch.tensor(nodes, device=Config.device, dtype=torch.float32),
+            torch.tensor(edges, device=Config.device, dtype=torch.bool)
+        )
+    coords = [instance[3]  for instance in instances]
     return (
         torch.tensor(items, device=Config.device, dtype=torch.float32),
         torch.tensor(nodes, device=Config.device, dtype=torch.float32),
-        torch.tensor(edges, device=Config.device, dtype=torch.bool)
+        torch.tensor(edges, device=Config.device, dtype=torch.bool),
+        coords
     )
 
 

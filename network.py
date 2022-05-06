@@ -96,7 +96,8 @@ class Agent(torch.nn.Module):
                 items: torch.Tensor,
                 nodes: torch.Tensor,
                 edges: torch.Tensor,
-                greedy: bool = False
+                greedy: bool = False,
+                return_step_rewards: bool = False
                ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Arguments
@@ -170,11 +171,21 @@ class Agent(torch.nn.Module):
             all_rewards.append(rewards)
         final_rewards = torch.stack(all_rewards, dim=1)
         final_rewards = (final_rewards.sum(1).bool().float() * -2) + 1
+        if not return_step_rewards:
+            return (
+                torch.stack(items_probs, dim=1),
+                torch.stack(nodes_probs, dim=1),
+                torch.stack(items_log_probs, dim=1),
+                torch.stack(nodes_log_probs, dim=1),
+                torch.stack(all_actions, dim=1),
+                final_rewards
+            )
         return (
             torch.stack(items_probs, dim=1),
             torch.stack(nodes_probs, dim=1),
             torch.stack(items_log_probs, dim=1),
             torch.stack(nodes_log_probs, dim=1),
             torch.stack(all_actions, dim=1),
-            final_rewards
+            final_rewards,
+            torch.stack(all_rewards, dim=1),
         )
