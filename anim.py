@@ -215,6 +215,8 @@ while is_running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             is_running = False
+        if event.type == pygame.KEYDOWN:
+            counter += 1
 
     window_surface.blit(background, (0, 0))
 
@@ -222,5 +224,4 @@ while is_running:
     draw_items(items, background, actions[:counter])
     draw_graph(items, nodes, coords, background, actions[:counter], step_rewards[:counter])
     pygame.display.update()
-    time.sleep(0.1)
-    counter += 1
+    # time.sleep(0.1)
