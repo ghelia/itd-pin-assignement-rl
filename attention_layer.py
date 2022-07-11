@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict
 
 import torch
 import numpy as np
@@ -68,7 +68,8 @@ class AttentionEncoderLayer(torch.nn.Module):
     def __init__(self,
                 emb_dim: int,
                 nhead: int,
-                dense_hidden_dim: int = 512
+                dense_hidden_dim: int,
+                name: str
                ) -> None:
         super().__init__()
         self.mha = MHA(emb_dim, nhead, batch_first=True, device=Config.device)
@@ -76,11 +77,13 @@ class AttentionEncoderLayer(torch.nn.Module):
         self.ff = Dense(emb_dim, dense_hidden_dim, emb_dim)
         self.mha_batchnorm = BatchNorm(emb_dim)
         self.ff_batchnorm = BatchNorm(emb_dim)
+        self.name = name
 
     def forward(self,
                 queries: torch.Tensor,
                 keys_values: torch.Tensor,
-                mask: Optional[torch.Tensor] = None
+                mask: Optional[torch.Tensor] = None,
+                attention_view: Optional[Dict[str, np.ndarray]]= None
                ) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = queries.shape[0]
         assert keys_values.shape[0] == batch_size
@@ -97,4 +100,6 @@ class AttentionEncoderLayer(torch.nn.Module):
         outputs = self.ff(mha_outputs)
         assert mha_outputs.shape == outputs.shape
         outputs = self.ff_batchnorm(mha_outputs + outputs)
+        if attention_view is not None:
+            attention_view[self.name] = attention.detach().cpu().numpy()
         return outputs, attention

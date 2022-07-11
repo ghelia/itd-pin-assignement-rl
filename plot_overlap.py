@@ -17,9 +17,12 @@ agent.train()
 agent.load_state_dict(torch.load("./docker2.chkpt"))
 
 
+start = 0.24
+end = 0.48
+gap = 0.004
 
 results = []
-for overlap in tqdm(np.arange(0, 1, 0.01)):
+for overlap in tqdm(np.arange(start, end, gap)):
     success = 0
     total = 0
     for _ in range(1):
@@ -33,6 +36,8 @@ for overlap in tqdm(np.arange(0, 1, 0.01)):
 results = np.array(results)
 plt.plot(results)
 plt.fill_between(np.arange(len(results)), results, color="blue", alpha=0.3)
+ticks = np.arange(start, end, gap*4).round(3)
+plt.xticks(np.arange(len(ticks))*4, ticks)
 plt.xlabel("overlap percent")
 plt.ylabel("success ratio")
 plt.title(f"Number items : {Config.nitems}")
