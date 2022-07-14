@@ -9,8 +9,7 @@ class Config:
     batch_size = 20
     paired_test_alpha = 0.02
 
-    selection_policy_weight = 0.5
-    placement_policy_weight = 1.5
+    selection_policy_weight = 0.25
 
     ntypes = 5
     nitems = 4

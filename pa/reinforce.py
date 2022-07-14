@@ -44,7 +44,7 @@ def reinforce(agent: Agent, baseline: Agent, recorder: Recorder, save_path: str)
             all_rewards.append(rewards.mean().item())
             all_baseline_rewards.append(baseline_rewards.mean().item())
 
-            log_probs = items_log_probs.sum(1)*Config.selection_policy_weight + nodes_log_probs.sum(1)*Config.placement_policy_weight
+            log_probs = items_log_probs.sum(1)*Config.selection_policy_weight + nodes_log_probs.sum(1)*(1. - Config.selection_policy_weight)
             loss = -((rewards - baseline_rewards) * log_probs).mean()
             # loss = ((rewards.sum(1)) * log_probs.sum(1)).mean()
             all_losses.append(loss.item())
