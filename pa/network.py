@@ -3,9 +3,9 @@ from typing import Tuple, List, Optional, Dict
 import torch
 import numpy as np
 
-from attention_layer import AttentionEncoderLayer, Compatibility,  Linear
-from config import Config
-from generator import put_items, check_placements
+from .attention_layer import AttentionEncoderLayer, Compatibility,  Linear
+from .config import Config
+from .generator import put_items, check_placements
 
 
 class ItemEncoder(torch.nn.Module):

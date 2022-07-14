@@ -3,9 +3,9 @@ import numpy as np
 import pygame
 import time
 
-from generator import *
-from config import Config
-from network import Agent
+from pa.generator import *
+from pa.config import Config
+from pa.network import Agent
 
 Config.batch_size = 10
 Config.overlap_ratio = 0.33
@@ -275,7 +275,7 @@ def draw_graph(items, nodes, coords, actions, step_rewards):
 
 agent = Agent()
 agent.train()
-agent.load_state_dict(torch.load("./agent-5261-increase-size.chkpt"))
+agent.load_state_dict(torch.load("./trained/agent-5261-increase-size.chkpt", map_location=Config.device))
 items, nodes, edges, coords = batch(npins=Config.nitems, batch_size=Config.batch_size, return_coords=True)
 with torch.no_grad():
     _, _, _, _, actions, rewards, step_rewards, attention_view = agent(items, nodes, edges, greedy=True, return_info=True)

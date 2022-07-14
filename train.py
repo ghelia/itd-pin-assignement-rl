@@ -3,9 +3,9 @@ from datetime import datetime
 
 import torch
 
-from reinforce import reinforce
-from network import Agent
-from recorder import Recorder
+from pa.reinforce import reinforce
+from pa.network import Agent
+from pa.recorder import Recorder
 
 session = datetime.now().strftime("%m_%d_%Y, %H:%M:%S")
 if not os.path.exists(os.path.join("./saves", session)):

@@ -5,10 +5,10 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-from config import Config
-from network import Agent
-from generator import batch
-from recorder import Recorder
+from .config import Config
+from .network import Agent
+from .generator import batch
+from .recorder import Recorder
 
 
 def reinforce(agent: Agent, baseline: Agent, recorder: Recorder, save_path: str) -> None:

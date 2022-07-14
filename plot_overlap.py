@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
 
-from generator import *
-from config import Config
-from network import Agent
+from pa.generator import *
+from pa.config import Config
+from pa.network import Agent
 
 Config.batch_size = 200
 Config.nitems = 50
@@ -14,7 +14,7 @@ Config.nitems = 50
 
 agent = Agent()
 agent.train()
-agent.load_state_dict(torch.load("./docker2.chkpt"))
+agent.load_state_dict(torch.load("./trained/docker2.chkpt", map_location=Config.device))
 
 
 start = 0.24

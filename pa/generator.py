@@ -3,7 +3,7 @@ from typing import List, Tuple, MutableMapping, Optional
 import torch
 import numpy as np
 
-from config import Config
+from .config import Config
 
 class Workbench:
 

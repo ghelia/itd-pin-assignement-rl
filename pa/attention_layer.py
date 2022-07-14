@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from torch.nn import MultiheadAttention as MHA
 
-from config import Config
+from .config import Config
 
 
 

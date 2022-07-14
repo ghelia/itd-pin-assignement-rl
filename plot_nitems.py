@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
 
-from generator import *
-from config import Config
-from network import Agent
+from pa.generator import *
+from pa.config import Config
+from pa.network import Agent
 
 Config.batch_size = 200
 Config.overlap_ratio = 0.33
@@ -30,7 +30,7 @@ def get_results(agent, start, end, random_item):
 agent = Agent()
 agent.train()
 # agent.load_state_dict(torch.load("./agent-5261-increase-size.chkpt"))
-agent.load_state_dict(torch.load("./agent-before-update.chkpt"))
+agent.load_state_dict(torch.load("./trained/agent-before-update.chkpt", map_location=Config.device))
 
 start = 3
 end = 100
