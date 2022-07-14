@@ -3,10 +3,10 @@ import torch
 class Config:
 
     learning_rate = 0.00003
-    learning_rate_decay = 0.999
+    learning_rate_decay = 0.9995
     n_epoch = 10000
     n_episode = 100
-    batch_size = 50
+    batch_size = 20
     paired_test_alpha = 0.02
 
     selection_policy_weight = 0.5
