@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, List, Callable
 
 import torch
 import numpy as np
@@ -9,8 +9,9 @@ from .config import Config
 
 
 class Linear(torch.nn.Module):
-    def __init__(self, ins: int, outs: int, use_bias: bool = False) -> None:
+    def __init__(self, ins: int, outs: int, use_bias: bool = False, activation: Optional[torch.nn.Module] = None) -> None:
         super().__init__()
+        self.activation = activation
         self.bias: Optional[torch.nn.Parameter] = None
         if use_bias is True:
             self.bias = torch.nn.Parameter(
@@ -23,18 +24,26 @@ class Linear(torch.nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         if self.bias is not None:
             return torch.matmul(inputs, self.weights) + self.bias
-        return torch.matmul(inputs, self.weights)
+        outputs = torch.matmul(inputs, self.weights)
+        if self.activation is None:
+            return outputs
+        else:
+            return self.activation(outputs)
 
 
 class Dense(torch.nn.Module):
-    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int) -> None:
+    def __init__(self, in_dim: int, hidden_dims: List[int], out_dim: int, activation: Callable = torch.nn.Relu) -> None:
         super().__init__()
-        self.hidden = Linear(in_dim, hidden_dim, use_bias=True)
-        self.out = Linear(hidden_dim, out_dim, use_bias=True)
-        self.relu = torch.nn.ReLU()
+        layers = []
+        previous = in_dim
+        for dim in hidden_dims:
+            layers.append(Linear(previous, dim, use_bias=True, activation=activation()))
+            previous = dim
+        layers.append(Linear(previous, out_dim, use_bias=True))
+        self.layers = torch.nn.Sequential(*[layers])
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        return self.out(self.relu(self.hidden(inputs)))
+        return self.layers(inputs)
 
 
 class Compatibility(torch.nn.Module):
@@ -74,7 +83,7 @@ class AttentionEncoderLayer(torch.nn.Module):
         super().__init__()
         self.mha = MHA(emb_dim, nhead, batch_first=True, device=Config.device)
         self.nhead = nhead
-        self.ff = Dense(emb_dim, dense_hidden_dim, emb_dim)
+        self.ff = Dense(emb_dim, [dense_hidden_dim], emb_dim)
         self.mha_batchnorm = BatchNorm(emb_dim)
         self.ff_batchnorm = BatchNorm(emb_dim)
         self.name = name

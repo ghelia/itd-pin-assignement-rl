@@ -25,5 +25,8 @@ class Config:
     placed_flag_index = ntypes
     placement_offset = placed_flag_index + 1
     possible_neighbor_offset = placement_offset + ntypes
+
     item_dims = ntypes*2
+    items_emb_dim = 128
     node_dims = ntypes + 1 + ntypes*2
+    nodes_emb_dim = 128

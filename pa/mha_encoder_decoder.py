@@ -7,7 +7,6 @@ from .attention_layer import AttentionEncoderLayer, Compatibility,  Linear
 from .network import NodeItemEncoder, ItemSelectionDecoder, NodeSelectionDecoder
 
 class Config:
-    items_emb_dim = 128
     items_dense_hidden_dim = 512
     items_nheads = 8
     items_nlayers = 3
@@ -20,7 +19,6 @@ class Config:
 
     compatibility_emb = 128
 
-    nodes_emb_dim = 128
     nodes_dense_hidden_dim = 512
     nodes_nheads = 8
     nodes_nlayers = 3
@@ -29,9 +27,9 @@ class Config:
 class MHAItemEncoder(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.linear = Linear(MainConfig.item_dims, Config.items_emb_dim)
+        self.linear = Linear(MainConfig.item_dims, MainConfig.items_emb_dim)
         self.attentions = torch.nn.Sequential(*[AttentionEncoderLayer(
-                Config.items_emb_dim,
+                MainConfig.items_emb_dim,
                 Config.items_nheads,
                 Config.items_dense_hidden_dim,
                 f"item_encoder_{idx}"
@@ -48,9 +46,9 @@ class MHAItemEncoder(torch.nn.Module):
 class MHANodeEncoder(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.linear = Linear(MainConfig.node_dims, Config.nodes_emb_dim)
+        self.linear = Linear(MainConfig.node_dims, MainConfig.nodes_emb_dim)
         self.attentions = torch.nn.Sequential(*[AttentionEncoderLayer(
-                Config.nodes_emb_dim,
+                MainConfig.nodes_emb_dim,
                 Config.nodes_nheads,
                 Config.nodes_dense_hidden_dim,
                 f"node_encoder_{idx}"
@@ -87,12 +85,12 @@ class MHAItemSelectionDecoder(ItemSelectionDecoder):
     def __init__(self) -> None:
         super().__init__()
         self.attention = AttentionEncoderLayer(
-                Config.items_emb_dim,
+                MainConfig.items_emb_dim,
                 Config.items_query_nheads,
                 Config.items_query_dense_hidden_dim,
                 "item_selection"
         )
-        self.linear = Linear(Config.nodes_emb_dim, 1)
+        self.linear = Linear(MainConfig.nodes_emb_dim, 1)
         self.softmax = torch.nn.Softmax(1)
 
     def forward(self, vitems: torch.Tensor, vnodes: torch.Tensor, already_selected: torch.Tensor, attention_view: Optional[Dict[str, np.ndarray]] = None) -> torch.Tensor:
@@ -108,14 +106,14 @@ class MHANodeSelectionDecoder(NodeSelectionDecoder):
     def __init__(self) -> None:
         super().__init__()
         self.glimpse = AttentionEncoderLayer(
-                Config.items_emb_dim,
+                MainConfig.items_emb_dim,
                 Config.glimpse_nheads,
                 Config.glimpse_dense_hidden_dim,
                 "node_selection_glimpse"
         )
         self.compatibility = Compatibility(
-            Config.nodes_emb_dim,
-            Config.items_emb_dim,
+            MainConfig.nodes_emb_dim,
+            MainConfig.items_emb_dim,
             Config.compatibility_emb,
         )
 
