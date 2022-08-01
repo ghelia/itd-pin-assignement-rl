@@ -17,6 +17,7 @@ def reinforce(agent: Agent, baseline: Agent, recorder: Recorder, save_path: str)
     agent.train()
     baseline.train()
     baseline.load_state_dict(agent.state_dict())
+    random_item_selection = Config.random_item_selection
 
     for E in range(Config.n_epoch):
         agent.train()
@@ -40,7 +41,7 @@ def reinforce(agent: Agent, baseline: Agent, recorder: Recorder, save_path: str)
                 nodes_log_probs,
                 actions,
                 rewards
-            ) = agent(items, nodes, edges)
+            ) = agent(items, nodes, edges, random_item_selection=random_item_selection)
             all_rewards.append(rewards.mean().item())
             all_baseline_rewards.append(baseline_rewards.mean().item())
 

@@ -6,10 +6,11 @@ class Config:
     learning_rate_decay = 0.9995
     n_epoch = 10000
     n_episode = 100
-    batch_size = 20
+    batch_size = 10
     paired_test_alpha = 0.02
 
-    selection_policy_weight = 0.25
+    selection_policy_weight = 1e-12
+    random_item_selection = False
 
     ntypes = 5
     nitems = 4
