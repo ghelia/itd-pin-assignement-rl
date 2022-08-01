@@ -1,102 +1,54 @@
+from abc import abstractmethod
 from typing import Tuple, List, Optional, Dict
 
 import torch
 import numpy as np
 
-from .attention_layer import AttentionEncoderLayer, Compatibility,  Linear
 from .config import Config
 from .generator import put_items, check_placements
 
 
-class ItemEncoder(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.linear = Linear(Config.item_dims, Config.items_emb_dim)
-        self.attentions = torch.nn.Sequential(*[AttentionEncoderLayer(
-                Config.items_emb_dim,
-                Config.items_nheads,
-                Config.items_dense_hidden_dim,
-                f"item_encoder_{idx}"
-        ) for idx in range(Config.items_nlayers)])
+class NodeItemEncoder(torch.nn.Module):
+    @abstractmethod
+    def forward(self,
+                items: torch.Tensor,
+                nodes: torch.Tensor,
+                edges: torch.Tensor,
+                available_mask: torch.Tensor,
+                attention_view: Optional[Dict[str, np.ndarray]] = None
+               ) -> Tuple[torch.Tensor, torch.Tensor]:
+        raise NotImplementedError()
 
-    def forward(self, inputs: torch.Tensor, mask: torch.Tensor, attention_view: Optional[Dict[str, np.ndarray]] = None) -> torch.Tensor:
-        inputs = inputs.to(Config.device)
-        outputs = self.linear(inputs)
-        for attention in self.attentions:
-            outputs, _ = attention(outputs, outputs, mask, attention_view=attention_view)
-        return outputs
+class ItemSelectionDecoder(torch.nn.Module):
+    @abstractmethod
+    def forward(self,
+                vitems: torch.Tensor,
+                vnodes: torch.Tensor,
+                already_selected: torch.Tensor,
+                attention_view: Optional[Dict[str, np.ndarray]] = None
+               ) -> torch.Tensor:
+        raise NotImplementedError()
 
-
-class NodeEncoder(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.linear = Linear(Config.node_dims, Config.nodes_emb_dim)
-        self.attentions = torch.nn.Sequential(*[AttentionEncoderLayer(
-                Config.nodes_emb_dim,
-                Config.nodes_nheads,
-                Config.nodes_dense_hidden_dim,
-                f"node_encoder_{idx}"
-        ) for idx in range(Config.nodes_nlayers)])
-
-    def forward(self, inputs: torch.Tensor, mask: torch.Tensor, attention_view: Optional[Dict[str, np.ndarray]] = None) -> torch.Tensor:
-        inputs = inputs.to(Config.device)
-        mask = mask.to(Config.device)
-        outputs = self.linear(inputs)
-        for attention in self.attentions:
-            outputs, _ = attention(outputs, outputs, mask, attention_view=attention_view)
-        return outputs
-
-class ItemSelectionPolicy(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.attention = AttentionEncoderLayer(
-                Config.items_emb_dim,
-                Config.items_query_nheads,
-                Config.items_query_dense_hidden_dim,
-                "item_selection"
-        )
-        self.linear = Linear(Config.nodes_emb_dim, 1)
-        self.softmax = torch.nn.Softmax(1)
-
-    def forward(self, vitems: torch.Tensor, vnodes: torch.Tensor, already_selected: torch.Tensor, attention_view: Optional[Dict[str, np.ndarray]] = None) -> torch.Tensor:
-        outputs, _ = self.attention(vitems, vnodes, attention_view=attention_view)
-        outputs = self.linear(outputs)
-        outputs = outputs.reshape(outputs.shape[:-1])
-        outputs[already_selected] = -np.inf
-        outputs = self.softmax(outputs)
-        return outputs
-
-
-class ItemPlacementPolicy(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.glimpse = AttentionEncoderLayer(
-                Config.items_emb_dim,
-                Config.glimpse_nheads,
-                Config.glimpse_dense_hidden_dim,
-                "node_selection_glimpse"
-        )
-        self.compatibility = Compatibility(
-            Config.nodes_emb_dim,
-            Config.items_emb_dim,
-            Config.compatibility_emb,
-        )
-
-    def forward(self, vitem: torch.Tensor, vnodes: torch.Tensor, possible_placement: torch.Tensor, attention_view: Optional[Dict[str, np.ndarray]] = None) -> torch.Tensor:
-        glimpse, _ = self.glimpse(vitem, vnodes, attention_view=attention_view)
-        outputs = self.compatibility(vnodes, glimpse, possible_placement)
-        if attention_view is not None:
-            attention_view["node_selection_compatibility"] = outputs.detach().cpu().numpy()
-        return outputs.reshape([-1, Config.nitems])
-
+class NodeSelectionDecoder(torch.nn.Module):
+    @abstractmethod
+    def forward(self,
+                vitem: torch.Tensor,
+                vnodes: torch.Tensor,
+                possible_placement: torch.Tensor,
+                attention_view: Optional[Dict[str, np.ndarray]] = None
+               ) -> torch.Tensor:
+        raise NotImplementedError()
 
 class Agent(torch.nn.Module):
-    def __init__(self) -> None:
+    def __init__(self,
+                 encoder: NodeItemEncoder,
+                 idecoder: ItemSelectionDecoder,
+                 ndecoder: NodeSelectionDecoder
+                ) -> None:
         super().__init__()
-        self.i_encoder = ItemEncoder()
-        self.n_encoder = NodeEncoder()
-        self.selection_policy = ItemSelectionPolicy()
-        self.placement_policy = ItemPlacementPolicy()
+        self.encoder = encoder
+        self.idecoder = idecoder
+        self.ndecoder = ndecoder
 
     def forward(self,
                 items: torch.Tensor,
@@ -121,9 +73,8 @@ class Agent(torch.nn.Module):
         attention_views = []
         for step in range(Config.nitems):
             attention_view = {}
-            vitems = self.i_encoder(items, available_mask, attention_view=attention_view)
-            vnodes = self.n_encoder(nodes, edges.bool(), attention_view=attention_view)
-            selection_probs = self.selection_policy(vitems, vnodes, already_selected, attention_view=attention_view)
+            vitems, vnodes = self.encoder(items, nodes, edges, available_mask, attention_view)
+            selection_probs = self.idecoder(vitems, vnodes, already_selected, attention_view=attention_view)
             if random_item_selection:
                 selection_probs = torch.rand(selection_probs.shape, device=Config.device)
                 selection_probs[already_selected] = -np.inf
@@ -146,8 +97,8 @@ class Agent(torch.nn.Module):
             items_log_probs.append(log_probs)
             all_actions.append(selections)
 
-            vitem = vitems[batch_range, selections].reshape([bsize, 1, Config.items_emb_dim])
-            placement_probs = self.placement_policy(
+            vitem = vitems[batch_range, selections].reshape([bsize, 1, vitems.shape[-1]])
+            placement_probs = self.ndecoder(
                 vitem,
                 vnodes,
                 nodes[:, :, Config.placed_flag_index].reshape([bsize, 1, Config.nitems]).bool().logical_not(),
